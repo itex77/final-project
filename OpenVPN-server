@@ -1,0 +1,18 @@
+sudo apt update
+sudo apt install openvpn easy-rsa
+sudo vim vars
+#В этом файле установите следующие параметры:
+export KEY_COUNTRY="Country Code"
+export KEY_PROVINCE="Province"
+export KEY_CITY="City"
+export KEY_ORG="Organization"
+export KEY_EMAIL="Email"
+export KEY_OU="Organizational Unit"
+
+#Генерация ключей и сертификатов для OpenVPN
+./easyrsa init-pki
+./easyrsa build-ca
+./easyrsa gen-req server nopass
+./easyrsa sign-req server server
+./easyrsa gen-dh
+
