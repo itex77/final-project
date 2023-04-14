@@ -152,3 +152,12 @@ push "redirect-gateway def1"
 push "dhcp-option DNS 77.88.8.8"
 'EOF
 systemctl restart openvpn@server
+#Настройка ядра системы
+#Открываем следующий файл:
+vi /etc/sysctl.d/gateway.conf
+#Добавляем в него строку:
+net.ipv4.ip_forward=1
+#Применяем настройку:
+sysctl -p /etc/sysctl.d/gateway.conf
+#на клиенте
+sudo openvpn client.conf
