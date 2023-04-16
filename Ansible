@@ -1,0 +1,118 @@
+sudo apt update
+sudo apt install ansible
+sudo vim /etc/ansible/hosts - #список серверов и групп серверов для развёртывания клиента zabbix
+  
+sudo vim ansible.cfg - #отключение проверки ключей при подключении по SSH
+[defaults]
+host_key_checking = false
+inventory         = /etc/ansible/hosts
+
+ansible --version
+sudo ssh-copy-id -i /home/itex/.ssh/id_rsa.pub itex@10.129.0.35
+sudo ssh-copy-id -i /home/itex/.ssh/id_rsa.pub itex@10.129.0.5
+ansible -i hosts servers -m ping
+sudo ansible-galaxy init deploy_zabbix-agent_on_hosts
+
+# configure roles.
+├── ansible.cfg
+├── hosts
+├── playbook_z.yml
+└── roles
+    └── deploy_zabbix-agent_on_hosts
+        ├── defaults
+        │   └── main.yml
+        ├── files
+        ├── handlers
+        │   └── main.yml
+        ├── meta
+        │   └── main.yml
+        ├── README.md
+        ├── tasks
+        │   ├── main.yml
+        │   ├── main.yml.copy
+        │   └── main.yml.only_start_zbbx
+        ├── templates
+        │   ├── zabbix-agentd.conf.j2
+        │   └── zabbix-agentd.conf.j2.copy
+        ├── tests
+        │   ├── inventory
+        │   └── test.yml
+        └── vars
+            └── main.yml
+  
+#handlers
+- name: zabbix-agent systemd
+  systemd:
+          name: zabbix-agent.service
+          enabled: yes
+          state: started
+
+#tasks
+---
+# tasks file for deploy_zabbix-agent_on_hosts
+- block: # ========Block for RedHat======
+  - name: Install zabbix-agent on RedHat Family
+    ansible.builtin.yum:
+            name: zabbix-agent
+            state: latest
+
+  - name: Stop service zabbix-agent
+    ansible.builtin.service:
+            name: zabbix-agent
+            state: stopped
+
+  - name: Remove zabbix config file
+    ansible.builtin.file:
+            path: /etc/zabbix_agentd.conf
+            state: absent
+
+  - name: Create new zabbix config file from templates
+    ansible.builtin.template:
+            src: zabbix_agentd.conf.j2
+            dest: /etc/zabbix_agentd.conf
+
+  - name: Start service zabbix-agent
+    ansible.builtin.service:
+            name: zabbix-agent
+            state: started
+            enabled: yes
+
+  when: ansible_os_family == "RedHat"
+
+- block: #=======Block for Debian======
+  - name: Install zabbix-agent on Debian Family
+    ansible.builtin.apt:
+            name: zabbix-agent
+            state: present
+
+  - name: Stop service zabbix-agent
+    ansible.builtin.service:
+            name: zabbix-agent
+            state: stopped
+
+  - name: Remove zabbix config file
+    ansible.builtin.file:
+            path: /etc/zabbix/zabbix_agentd.conf
+            state: absent
+
+  - name: Create new zabbix config file from templates
+    ansible.builtin.template:
+            src: zabbix_agentd.conf.j2
+            dest: /etc/zabbix/zabbix_agentd.conf
+
+  - name: Start service zabbix-agent
+    ansible.builtin.service:
+            name: zabbix-agent
+            state: started
+            enabled: yes
+
+  when: ansible_os_family == "Debian"
+  
+#templates: zabbix-agentd.conf.j2
+  PidFile=/run/zabbix/zabbix_agentd.pid
+  LogFile=/var/log/zabbix/zabbix_agentd.log
+  LogFileSize=0
+  Server=10.129.0.32
+  ServerActive=127.0.0.1
+  Hostname={{ ansible_hostname }}
+  Include=/etc/zabbix/zabbix_agentd.d/*.conf
