@@ -1,4 +1,5 @@
 sudo apt update
+# https://www.dmosk.ru/instruktions.php?object=openvpn-ubuntu-install#setting-client
 sudo apt install openvpn easy-rsa
 #Создание сертификатов
 #Создаем каталог, в котором разместим готовые сертификаты для OpenVPN:
