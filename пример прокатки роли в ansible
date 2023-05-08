@@ -8,3 +8,5 @@
         dest: /tmp/package.deb
     - name: Install package
       shell: dpkg -i /tmp/package.deb
+
+дистрибутивы - https://cloud.mail.ru/public/Uyx8/1fZss7UhW
