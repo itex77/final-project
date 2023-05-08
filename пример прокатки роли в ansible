@@ -1,0 +1,10 @@
+Как пример - name: Download and install package
+  hosts: myserver
+  become: yes
+  tasks:
+    - name: Download package
+      get_url:
+        url: https://example.com/package.deb
+        dest: /tmp/package.deb
+    - name: Install package
+      shell: dpkg -i /tmp/package.deb
