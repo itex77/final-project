@@ -56,4 +56,21 @@ systemctl enable openvpn@$ServerName
 unset ServerName
 unset VPNNetwork
 
+echo net.ipv4.ip_forward=1 >> /etc/sysctl.conf
+sysctl -p
 
+
+sudo ufw allow 1194/udp
+
+bash -c "cat > /etc/ufw/before.rules <<EOF
+ # don't delete the 'COMMIT' line or these rules won't be processed
+ COMMIT
++# START OPENVPN RULES
++# NAT table rules
++*nat
++:POSTROUTING ACCEPT [0:0]
++# Allow traffic from OpenVPN client to eth0
++-A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
++COMMIT
++# END OPENVPN RULES
+EOF"
