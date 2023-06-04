@@ -58,59 +58,31 @@ EOF'
 
 #Создадим каталог для логов:
 mkdir /var/log/openvpn
-#Разрешаем автоматический старт сервиса vpn и запускаем его:
-systemctl enable openvpn@server --now
 
-###Настройка OpenVPN-клиента
-sudo apt-get install openvpn easy-rsa
-#Сертификат должен быть сформирован на сервер, после чего перенесен на клиентское устройство. Рассмотрим процесс подробнее.
-#На сервере
-#Переходим в каталог easy-rsa:
-cd /etc/openvpn/easy-rsa
-#Как в случае формирования сертификата для сервера, наши следующие шаги зависят от версии RSA.
-#а) Для новой версии (easyrsa)
-#Задаем время действия сертификата:
-export EASYRSA_CERT_EXPIRE=1460
-#* 1460 дней или 4 года.
-#Создаем сертификат для клиента:
-./easyrsa build-client-full client1 nopass
-#Вводим пароль, который указывали при создании корневого сертификата:
-#Enter pass phrase for /etc/openvpn/easy-rsa/pki/private/ca.key:
+#Настройка клиентов на сервере
+CreateOpenVPNClienFiles.sh
 
-#Разрешим доступ на чтения всем пользователям:
-chmod -R a+r /tmp/keys
+#Скопируем конфиг и ключи на клиенты
+scp /etc/openvpn/clients/ub2srv/ itex@192.168.88.213:/etc/openvpn/client/
+scp /etc/openvpn/clients/ub3srv/ itex@192.168.88.205:/etc/openvpn/client/
 
-#На клиенте
-sudo bash -c 'cat > /etc/openvpn/client.conf <<EOF
-client
-dev tun
-proto udp
-remote $ServerAddress 1194
-resolv-retry infinite
-nobind
-persist-key
-persist-tun
-cipher DES-CBC
-<ca>
-auth-user-pass
-'EOF
+
+#Разрешим доступ на клиенте для записи пользователю:
+ыгвщ chmod -R a+r /etc/openvpn/client/
 
 #Настройка на сервере
 
-#На клиенте
 
 #Перезапускаем сервер:
 systemctl restart openvpn@server
 
-#Настройка на клиенте
-В конфигурационный файл клиента добавляем:
-sudo bash -c 'cat > /etc/openvpn/client.conf <<EOF
-auth-user-pass
-'EOF
-
-#Настройка делает так, что клиенты VPN-сервера начинают использовать последний как шлюз по умолчанию. Таким образом, весь трафик идет через наш сервер.
-
-systemctl restart openvpn@server
-
 #на клиенте
-sudo openvpn client.conf
+apt update && apt upgrade -y
+
+sudo apt install openvpn -y
+
+# нужно делать в консоли(yandex). По ssh потеряете связь.  
+openvpn /etc/openvpn/clientvpn.conf
+
+#нужно немного подождать
+ping 10.0.0.1
