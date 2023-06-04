@@ -16,17 +16,12 @@ do
 client
 dev tun
 proto tcp
-remote $ServerAddress
+remote $ServerAddress 1194
 resolv-retry infinite
 nobind
 persist-key
 persist-tun
 cipher DES-CBC
-script-security 2
-up /etc/openvpn/update-systemd-resolved
-up-restart
-down /etc/openvpn/update-systemd-resolved
-down-pre
 <ca>
 EOF"
 
