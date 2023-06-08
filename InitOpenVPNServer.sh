@@ -31,21 +31,20 @@ cp /etc/openvpn/easy-rsa/pki/ca.crt /etc/openvpn/
 
 bash -c "cat > /etc/openvpn/$ServerName.conf <<EOF
 port 1194
-proto tcp
+proto udp
 dev tun
-ca keys/ca.crt
-cert keys/$ServerName.crt
-key keys/$ServerName.key
-dh keys/dh.pem
+ca ca.crt
+cert $ServerName.crt
+key $ServerName.key
+dh dh.pem
 server $VPNNetwork
-ifconfig-pool-persist ipp.txt
+push "redirect-gateway def1"
+push "dhcp-option DNS 8.8.8.8"
 keepalive 10 120
+cipher DES-CBC
 persist-key
 persist-tun
-script-security 2
-status /var/log/openvpn/openvpn-status.log
-log-append /var/log/openvpn/openvpn.log
-cipher DES-CBC
+status /var/log/openvpn/servervpn.log
 EOF'
 
 mkdir /var/log/openvpn
