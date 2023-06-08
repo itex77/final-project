@@ -29,6 +29,7 @@ EOF'
 #Формируем ключ Диффи-Хеллмана:
 ./easyrsa gen-dh
 
+#Создаем сертификат для сервера OpenVPN
 ./easyrsa build-server-full $ServerName nopass
 
 #Скопируем созданные ключи в рабочий каталог:
@@ -59,8 +60,7 @@ EOF'
 #Создадим каталог для логов:
 mkdir /var/log/openvpn
 
-#Настройка клиентов на сервере
-CreateOpenVPNClienFiles.sh
+#Настройка клиентов на сервере - CreateOpenVPNClienFiles.sh
 
 #Скопируем конфиг и ключи на клиенты
 scp /etc/openvpn/clients/ub2srv/ itex@192.168.88.213:/etc/openvpn/client/
@@ -68,10 +68,7 @@ scp /etc/openvpn/clients/ub3srv/ itex@192.168.88.205:/etc/openvpn/client/
 
 
 #Разрешим доступ на клиенте для записи пользователю:
-ыгвщ chmod -R a+r /etc/openvpn/client/
-
-#Настройка на сервере
-
+sudo chmod -R a+r /etc/openvpn/client/
 
 #Перезапускаем сервер:
 systemctl restart openvpn@server
