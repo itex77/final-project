@@ -3,3 +3,24 @@ wget https://dl.grafana.com/oss/release/grafana_8.5.22_amd64.deb
 sudo dpkg -i grafana_8.5.22_amd64.deb
 #download deb_x86_64 packet from https://www.elastic.co/downloads/beats/filebeat-oss
 sudo dpkg -i filebeat-oss-8.7.0-amd64.deb
+
+или 
+
+sudo apt-get install -y apt-transport-https
+sudo apt-get install -y software-properties-common wget
+#?sudo wget -q -O /usr/share/keyrings/grafana.key https://apt.grafana.com/gpg.key
+sudo apt-get update
+apt-get install -f
+sudo dpkg -i grafana_9.4.1_amd64.deb #перед этим закидываем установочный файл в home отсюда 
+https://cloud.mail.ru/public/Uyx8/1fZss7UhW
+sudo systemctl start grafana-server
+sudo systemctl enable grafana-server
+sudo systemctl status grafana-server
+
+
+текст из модуля:
+Если сервис запущен и никаких проблем не наблюдается, то открываем веб-браузер и вводим http://yourserverapi:3000 
+(в моём случае localhost с портом 3000: http://localhost:3000/) — так как именно на 3000 порту работает Grafana.
+Далее видим окно приветствия и поля для ввода логина и пароля. По умолчанию login: admin, password: admin.
+Как только мы заполним данные поля и нажмем – Log In – Grafana предложит сменить данные для входа.
+Можем сменить или нажать Skip и пропустить данный шаг.
