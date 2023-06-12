@@ -1,0 +1,301 @@
+# 1. Создание ролей с использованием ansible-galaxy init
+ansible-galaxy init apache
+ansible-galaxy init php
+ansible-galaxy init nginx
+ansible-galaxy init zabbix-agent
+ansible-galaxy init bind9
+ansible-galaxy init postfix
+ansible-galaxy init dovecot
+ansible-galaxy init filebeat
+ansible-galaxy init postgresql-12
+ansible-galaxy init elasticsearch
+
+
+# 2. Создание плейбуков для установки и настройки сервисов
+## playbook_ub2srv.yml
+---
+- name: Configure ub2srv server
+  hosts: ub2srv
+  become: yes
+  roles:
+    - apache
+    - php
+    - nginx
+    - zabbix-agent
+    - bind9
+    - postfix
+    - dovecot
+    - filebeat
+
+
+## playbook_cnt7srv.yml
+---
+- name: Configure cnt7srv server
+  hosts: cnt7srv
+  become: yes
+  roles:
+    - postgresql-12
+    - zabbix-agent
+    - elasticsearch
+
+
+# 3. Команды для запуска плейбуков
+ansible-playbook -i inventory/hosts playbook_ub2srv.yml
+ansible-playbook -i inventory/hosts playbook_cnt7srv.yml
+
+
+# 4. Настройка доступности сервисов
+Необходимо настроить firewall на серверах и создать необходимые правила, 
+которые позволят доступ к следующим сервисам:
+
+- zabbix-server
+- Kibana
+- Grafana
+- nginx
+
+# 5. inventory/hosts файл
+[ub2srv]
+10.8.0.6 ansible_user=username ansible_ssh_private_key_file=path/to/private-key
+
+[cnt7srv]
+10.8.0.7 ansible_user=username ansible_ssh_private_key_file=path/to/private-key
+
+
+# 6. Создание переменных и задач для установки состояний сервисов
+Для каждой роли в папке vars создаем файл main.yml с переменными, 
+которые будут использованы для генерации конфигураций.
+Затем в папке handlers создаем файл main.yml с задачами для установки состояний службы
+(started, enabled), как техническое задание требует базовой настройки каждого сервиса.
+
+Пример для роли apache:
+
+## apache/vars/main.yml
+apache_listen_port: 80
+apache_listen_address: 0.0.0.0
+
+
+## apache/handlers/main.yml
+---
+- name: Restart Apache
+  ansible.builtin.systemd:
+    name: apache2
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+
+
+# 7. Загрузка созданных ролей на GitHub
+Создайте репозиторий на GitHub и загрузите в него все созданные роли без чувствительных данных
+(например, приватный ключ ssh и пароли). Не забудьте добавить файл .gitignore
+для исключения не нужных файлов и папок.
+
+git init
+git add *
+git commit -m "Initial commit"
+git remote add origin https://github.com/YourUsername/ansible-roles.git
+git push -u origin master
+
+
+# 8. Назначение паролей
+Техническое задание требует назначить пароли для каждого сервиса.
+Это можно сделать, добавив переменные в файл vars/main.yml роли
+и изменить скрипты установки сервисов так, чтобы использовать эти пароли.
+
+Пример для zabbix-server:
+
+## zabbix-server/vars/main.yml
+zabbix_database_password: your_password_here
+
+## 9. Установка и настройка сервисов в roles
+
+Далее, описываем установку и настройку каждого сервиса в папке tasks для каждой роли.
+Ниже приведены примеры для некоторых ролей:
+
+### apache/tasks/main.yml
+---
+- name: Install Apache
+  ansible.builtin.apt:
+    name: apache2
+    state: present
+
+- name: Configure Apache
+  ansible.builtin.template:
+    src: default.conf.j2
+    dest: /etc/apache2/sites-available/default.conf
+    mode: 0644
+  notify:
+    - Restart Apache
+
+- name: Enable default site
+  ansible.builtin.command:
+    cmd: a2ensite default
+    creates: /etc/apache2/sites-enabled/default.conf
+
+
+### php/tasks/main.yml
+---
+- name: Install PHP
+  ansible.builtin.package:
+    name: '{{ item }}'
+    state: present
+  loop:
+    - php-cli
+    - php-fpm
+    - php-common
+    - php-json
+
+
+### nginx/tasks/main.yml
+---
+- name: Install Nginx
+  ansible.builtin.apt:
+    update_cache: yes
+    name: nginx
+    state: present
+
+- name: Create Nginx configuration file from template
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    mode: 0644
+  notify:
+    - Restart Nginx
+
+
+## 10. Создание шаблонов конфигурации для сервисов в roles
+
+Создаем шаблоны конфигурации для сервисов, используя Jinja2, и сохраняем их в папке templates
+для каждой роли. Ниже приведены примеры для некоторых ролей:
+
+### apache/templates/default.conf.j2
+<VirtualHost *:{{ apache_listen_port }}>
+    ServerAdmin webmaster@example.com
+    DocumentRoot /var/www/html
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+
+
+### nginx/templates/nginx.conf.j2
+worker_processes auto;
+pid /run/nginx.pid;
+events {
+    worker_connections 768;
+}
+
+http {
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    server_tokens off;
+    
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+    
+    server {
+        listen 80 default_server;
+        server_name _;
+        
+        root /var/www/html;
+        
+        location ~ \.php$ {
+            include snippets/fastcgi-php.conf;
+            fastcgi_pass unix:/run/php/php7.4-fpm.sock;
+        }
+    }
+}
+
+
+## 11. Проверка плейбуков
+
+Проверьте созданные плейбуки для убедитесь в их корректной работе. 
+Если что-то не работает, исправьте ошибки и повторите проверку, выполняя плейбук снова. 
+
+# Проверка:
+ansible-playbook -i inventory/hosts --syntax-check playbook_ub2srv.yml
+ansible-playbook -i inventory/hosts --syntax-check playbook_cnt7srv.yml
+
+
+## 12. Запуск плейбуков
+
+Запустите плейбуки, чтобы установить и настроить сервисы на серверах.
+
+ansible-playbook -i inventory/hosts playbook_ub2srv.yml
+ansible-playbook -i inventory/hosts playbook_cnt7srv.yml
+
+
+При успешном выполнении вы устанавливаете и настраиваете различные приложения на серверах,
+используя Ansible. Следующим шагом будет проверка сервисов и их интеграция на серверах.
+
+## 13. Проверка установленных и настроенных сервисов
+
+После запуска плейбуков убедитесь, что все сервисы установлены и
+работают должным образом на удаленных серверах. Ниже приведены ожидаемые результаты после
+выполнения плейбуков:
+
+- Веб-сервер Apache или Nginx должен быть установлен и запущен.
+- Настройки конфигурации для веб-серверов должны быть корректно применены.
+- Сервер баз данных MySQL должен быть установлен и настроен.
+- Пакеты PHP и связанные с ним модули должны быть установлены и активированы.
+
+Следующим шагом будет проверка каждого из сервисов на работоспособность на уровне сервера:
+
+### Проверка веб-сервера (Apache / Nginx)
+
+- Проверьте статус службы для веб-сервера:
+
+  sudo systemctl status apache2 # для сервера на Ubuntu
+  sudo systemctl status nginx   # для сервера на CentOS
+  
+  
+- Если служба активна и работает корректно, проверьте, доступен ли веб-сервер,
+открыв веб-страницу на IP-адресе удаленного сервера. Вы должны увидеть
+стандартную страницу веб-сервера.
+
+### Проверка сервера баз данных (MySQL)
+
+- Проверьте статус службы MySQL:
+
+  sudo systemctl status mysql # для сервера на Ubuntu
+  sudo systemctl status mariadb # для сервера на CentOS
+  
+  
+- Если MySQL активен и работает должным образом, проверьте его коннекторы.
+Подключитесь к серверу через командную строку:
+
+    mysql -u root -p
+  
+
+- Введите пароль, указанный в переменной `mysql_root_password` в файле `group_vars/all`.
+Затем проверьте базы данных, убедитесь, что все настроено и работает должным образом.
+
+### Проверка PHP
+
+- Создайте временный PHP-файл на веб-сервере с информацией phpinfo:
+
+    sudo nano /var/www/html/info.php # Напишите следующее содержание:
+  <?php
+  phpinfo();
+  ?>
+  
+
+- Зайдите на сайт `http://(SERVER_IP)/info.php`  Чтобы увидеть детали установленного PHP.
+Убедитесь, что все необходимые модули установлены и активированы.
+
+## 14. Внесение изменений и повторное использование
+
+Когда все сервисы будут тщательно проверены и настроены, вы можете внести изменения,
+если это необходимо, в плейбуки или роли, и повторно выполнить их для обновления
+серверов с новыми настройками.
+
+При использовании системы контроля версий, такой как Git, вы можете контролировать версии
+своих плейбуков, ролей и переменных, чтобы легко отслеживать изменения и историю изменений.
+
+Теперь вы успешно использовали Ansible для управления развертыванием и настройками сервера.
+Обратите внимание на то, что Ansible очень мощный и гибкий инструмент,
+который может автоматизировать самые разнообразные задачи. Продолжайте изучать и
+экспериментировать с различными возможностями Ansible, чтобы повысить эффективность работы
+с вашими серверами.
