@@ -1,0 +1,248 @@
+Добрый день,
+Подскажите, пожалуйста, по Итоговому проекту 3 пытаюсь zabbix server web переместить c http на https:
+Что я ожидаю:
+Сейчас так
+--http://158.160.108.52/zabbix
+Будет так
+--https://158.160.108.52/zabbix
+Или будет так
+--https://158.160.108.52.nip.io/zabbix
+Или будет так
+--https://www.158.160.108.52.nip.io/zabbix
+Любой вариант устроит.
+___
+Что я делал:
+Я пробовал 2 способа
+1Способ/ https://dzen.ru/a/Yn5CGILKiWhq85GE
+Разрешаем ssl модуль в apache.
+sudo a2enmod ssl
+Перегружаем apache.
+sudo systemctl restart apache2
+Для получения бесплатного ssl сертификата от Let's Encrypt, установим репозиторий.
+sudo add-apt-repository ppa:certbot/certbot
+Установим пакет certbot
+sudo apt install certbot python3-certbot-apache -y
+root@server1:~# sudo certbot --apache -d www.158.160.108.52.nip.io -d 158.160.108.52.nip.ioWould you be willing to share your email address with the Electronic Frontier
+organization that develops Certbot? We'd like to send you email about our work
+encrypting the web, EFF news, campaigns, and ways to support digital freedom.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+(Y)es/(N)o: N
+Obtaining a new certificate
+Performing the following challenges:
+http-01 challenge for 158.160.108.52.nip.io
+http-01 challenge for www.158.160.108.52.nip.io
+Enabled Apache rewrite module
+Waiting for verification...
+Cleaning up challenges
+Created an SSL vhost at /etc/apache2/sites-available/000-default-le-ssl.conf
+Deploying Certificate to VirtualHost /etc/apache2/sites-available/000-default-le                           -ssl.conf
+Enabling available site: /etc/apache2/sites-available/000-default-le-ssl.conf
+
+
+We were unable to find a vhost with a ServerName or Address of 158.160.108.52.ni                           p.io.
+Which virtual host would you like to choose?
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+1: 000-default.conf               |                       |       | Enabled
+2: 000-default-le-ssl.conf        | www.158.160.108.52.ni | HTTPS | Enabled
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Select the appropriate number [1-2] then [enter] (press 'c' to cancel): 1
+The selected vhost would conflict with other HTTPS VirtualHosts within Apache. Please select another vhost or add ServerNames to your configuration.
+VirtualHost not able to be selected.
+
+
+IMPORTANT NOTES:
+ - Unable to install the certificate
+ - Congratulations! Your certificate and chain have been saved at:
+   /etc/letsencrypt/live/www.158.160.108.52.nip.io/fullchain.pem
+   Your key file has been saved at:
+   /etc/letsencrypt/live/www.158.160.108.52.nip.io/privkey.pem
+   Your cert will expire on 2023-08-31. To obtain a new or tweaked
+   version of this certificate in the future, simply run certbot again
+   with the "certonly" option. To non-interactively renew all of
+   your certificates, run "certbot renew"
+ - Your account credentials have been saved in your Certbot
+   configuration directory at /etc/letsencrypt. You should make a
+   secure backup of this folder now. This configuration directory will
+   also contain certificates and private keys obtained by Certbot so
+   making regular backups of this folder is ideal.
+
+
+В директории вижу появились файлы
+root@server1:/etc/letsencrypt/live/www.158.160.108.52.nip.io# ls
+cert.pem  chain.pem  fullchain.pem  privkey.pem  README
+
+
+Вне зависимости от того выберу 1 или 2 выше будет красным цветом 
+The selected vhost would conflict with other HTTPS VirtualHosts within Apache. Please select another vhost or add ServerNames to your configuration.
+
+
+Ни один из адресов указанных мной в ожидаемых в начале этого поста не работает. Моё предположение: автоматическая подмена как в статье по ссылке (Дзен) не удалась. Zabbix имеет другую структуру конфигов возможно.
+
+
+2Способ: https://www.zabbix.com/documentation/5.2/ru/manual/installation/requirements/best_practices
+Только редактирую всё для Ubuntu (в статье про CentOS)
+
+
+sudo a2enmod ssl
+
+
+Создайте папку для SSL ключей:
+mkdir -p /etc/apache2/ssl/private
+chmod 700 /etc/apache2/ssl/private
+
+
+Создайте SSL сертификат:
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/apache2/ssl/private/apache-selfsigned.key -out /etc/apache2/ssl/apache-selfsigned.crt
+
+
+Заполните подсказки соответствующим образом. Самая важная строка здесь, которая запрашивает Common Name. 
+Вам необходимо указать имя домена, которое вы хотите связать с вашим сервером. 
+Вместо него вы можете указать публичный IP адрес, если у вас отсутствует имя домена. 
+В этой статье мы будем использовать example.com. ----------У меня будет 158.160.108.52.nip.io
+Country Name (2 letter code) [XX]: 
+State or Province Name (full name) []:
+Locality Name (eg, city) [Default City]:
+Organization Name (eg, company) [Default Company Ltd]:
+Organizational Unit Name (eg, section) []:
+Common Name (eg, your name or your server's hostname) []:158.160.108.52.nip.io
+Email Address []:
+
+
+Измените конфигурацию Apache SSL:
+?Коллеги, проверьте, правильно ли я понял, что этот файл надо править?
+??? sudo vi /etc/apache2/sites-available/default-ssl.conf
+Содержимое вариант А)
+DocumentRoot "/usr/share/zabbix"
+ServerName 158.160.108.52.nip.io:443
+SSLCertificateFile /etc/apache2/ssl/apache-selfsigned.crt
+SSLCertificateKeyFile /etc/apache2/ssl/private/apache-selfsigned.key
+Перезапустите сервис Apache, чтобы применить изменения:
+sudo systemctl restart apache2
+
+
+Результат способа2 Содержимое вариант А):
+https://158.160.108.52/zabbix
+Этот сайт не может обеспечить безопасное соединениеСайт 158.160.108.52 отправил недействительный ответ.
+Выполните диагностику сети в Windows.
+ERR_SSL_PROTOCOL_ERROR
+__
+Содержимое вариант B)
+
+
+<IfModule mod_ssl.c>
+        <VirtualHost _default_:443>
+                ServerAdmin 158.160.108.52.nip.io
+                ServerName 158.160.108.52.nip.io
+
+
+                DocumentRoot /var/www/html
+
+
+                ErrorLog ${APACHE_LOG_DIR}/error.log
+                CustomLog ${APACHE_LOG_DIR}/access.log combined
+
+
+                SSLEngine on
+
+
+                SSLCertificateFile    /etc/apache2/ssl/apache-selfsigned.crt
+                SSLCertificateKeyFile /etc/apache2/ssl/private/apache-selfsigned.key
+
+
+                <FilesMatch ".(cgi|shtml|phtml|php)$">
+                                SSLOptions +StdEnvVars
+                </FilesMatch>
+                <Directory /usr/lib/cgi-bin>
+                                SSLOptions +StdEnvVars
+                </Directory>
+
+
+        </VirtualHost>
+</IfModule>
+Перезапустите сервис Apache, чтобы применить изменения:
+sudo systemctl restart apache2
+
+
+Результат способа2 Содержимое вариант B):
+https://158.160.108.52/zabbix
+См. скриншот
+
+
+8 комментариев
+2 июня 2023 г.
+
+V
+vadim
+
+22:47
+первый способ рабочий, так как у вас zabbix в отдельном каталоге сайта. Тут никаких проблем нет, если вы справились с 13-м модулем в свое время. Во случае получения самоподписанного сертификата никто ему доверять не будет, в этом и смысл сертификации. Есть доверенные Центры Сертификации, чьи сертификаты уже есть локально в системе и те, сертификаты, которыми будут ими выпущены или будут выпущены теми, кому они доверяют и будут доверенными.
+
+3 июня 2023 г.
+
+Z
+Zakharov Egor
+
+07:53
+Добрый день, @Вадим 
+Как Вы можете видеть выше Способ1 не принёс результата, страниц не открывается вообще. В модуле 13 такой способ работает как и в статье. В чём разница? Предполагаю в том, что скачивая Zabbix с официального сайта я получил готовое решение в виде каким=то образом настроенного Apache. Я не создавал файлов в site-available. В каталога available и enable ссылки на zabbix.conf, который не содержит Server name как я ожидал увидеть по статье способа1 (см ссылку). Отсюда у меня вопрос: какие дополнительные действия нужны для успеха варианта1? Возможно нужно куда-то дописать ссылки на cert и key которыя я сгенерировал? (в /etc/apache2/sites-available/default-ssl.conf оказалось недостаточно/неправильно).
+По поводу способа2: сайт хотябы открывается, но как Вы можете видеть на скриншоте - это не то, что ожидалось, потому что hhtps зачёркнут. Так не должно быть, я должен был увидеть "замок" и кликнув по нему там было ы указано что это самоподписанный сертификат (см. модуль 13 и ссылку Дзен)
+
+Z
+Zakharov Egor
+
+17:07
+Добрый день, @Вадим 
+Возможно Вы правы по поводу "так и должно быть"
+Реализовал то же самое для Grafana, по 
+https://grafana.com/docs/grafana/latest/setup-grafana/set-up-https/
+https://www.turbogeek.co.uk/grafana-how-to-configure-ssl-https-in-grafana/
+В этих источниках результат выглядит точно так же как на моём скриншоте выше Результат способа2 Содержимое вариант B).
+
+
+grafana.com
+
+Set up Grafana HTTPS for secure web traffic | Grafana documentation
+Set up Grafana HTTPS for secure web traffic When accessing the Grafana UI through the web, it is important to set up HTTPS to ensure the communication between Grafana and the end user is encrypted, including login credentials and retrieved metric data. In order to ensure secure traffic over the internet, Grafana must have a key for encryption and a Secure Socket Layer (SSL) Certificate to verify the identity of the site.
+
+V
+vadim
+
+17:17
+вам нужно было в первом описанном варианте сделать все правильно:
+1. Не устанавливать ppa certbot. Он давно не работает. Удалите его.
+2. Сначала надо сделать конфигурацию для виртуального хоста, а потом плагин для certbot подправит конфигурацию. Так как плагин не нашел конфигурацию, то и конфиг не поправил (хотя это можно сделать самостоятельно). В выводе certbot все это было написано, надо только внимательно читать.
+3. При установке пакета zabbix-apache-conf создается конфигурация для zabbix, которую вы и видите. Файл называется zabbix.conf, найти его достаточно легко в каталоге apache2 (man find). В этом конфиге есть создание псевдонима для каталога /zabbix, которым вы и пользуетесь при работе в веб-интерфейсом zabbix.
+
+Z
+Zakharov Egor
+
+20:51
+Добрый вечер, @Вадим 
+По поводу:
+1/ Не знал, что не работает. Возможно делал по устаревшей статье (сайту)
+2/ Согласен с Вами, как Вы можете видеть в своём посте выше я так и написал:
+Вне зависимости от того выберу 1 или 2 выше будет красным цветом 
+The selected vhost would conflict with other HTTPS VirtualHosts within Apache. Please select another vhost or add ServerNames to your configuration.
+Дело в том, что сделать конфигурацию для виртуального хоста руками не предусмотрено (по крайней мере в site-available). Поэтому я и задал вопрос, для совета по оптимальной реализации, я посчитал что создание конфигурации виртуального хоста руками в параллель с предустановленным конфигурационном файле (см следующий пункт 3/) создаст конфликт и пр. Поэтому я если Вы подскажите процедуру действий, а так же содержимое конфигурационного файла (ссылку на сайт/гайд/инструкцию, где содержаться правильная конфигурация) - будет замечательно.
+3/ Да, такой файл и 2 ссылки на него я нашёл. Только вот он громоздкий и что там менять я не нашёл. Не изменял ничего.
+Правил /etc/apache2/sites-available/default-ssl.conf.  Получается, что исправить /etc/apache2/sites-available/default-ssl.conf на Содержимое вариант B - было верным решением https (перечёркнутый) работает, верно?
+
+V
+vadim
+
+20:56
+накидать конфиг для сайта с именем ip.nip.io. Добавить пару строк в конфиг для https или позволить сделать это certbot. Дело на 10 минут.
+
+Z
+Zakharov Egor
+
+21:03
+Добрый вечер, @Вадим 
+Вы полагаете создать новую конфигурацию в в site-available в параллель с предустановленным конфигурационным файлом zabbix.conf правильное решение? Это будет работать?
+
+V
+vadim
+
+21:09
+если вы получаете сертификат DV, то он выдается на имя. Это значит, что у вас должна быть конфигурация для виртуального хоста. Именно это и просит плагин для certbot и для этой конфигурации он создаст копию конфига, добавив часть с ssl. 
+Конфигурация для заббикс сделана для хоста, но там есть псевдоним. Насколько я понимаю, это глобальная настройка. Если не будет работать, перенесете текст конфига в конфиг сайта ip.nip.io.
