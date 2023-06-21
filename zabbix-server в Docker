@@ -1,0 +1,101 @@
+1. Установите Docker на Ubuntu 20.04.
+
+      sudo apt-get update
+   sudo apt-get install apt-transport-https ca-certificates curl software-properties-common
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+   echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+   sudo apt-get update
+   sudo apt-get install docker-ce docker-ce-cli containerd.io
+   
+
+2. Создайте файл Dockerfile для создания образа контейнера zabbix-server. Пример Dockerfile может выглядеть следующим образом:
+
+      FROM ubuntu:20.04
+
+   RUN apt-get update && apt-get install -y wget gnupg2 nginx php-fpm php-mysql zabbix-server-mysql zabbix-frontend-php zabbix-agent mariadb-server sudo && \
+      wget https://repo.zabbix.com/zabbix/5.4/ubuntu/pool/main/z/zabbix-release/zabbix-release_5.4-1+ubuntu20.04_all.deb && \
+      dpkg -i zabbix-release_5.4-1+ubuntu20.04_all.deb && \
+      apt-get update && \
+      apt-get clean && \
+      rm -rf /var/lib/apt/lists/*
+
+   RUN ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
+       sed -i "/^post_max_size/s/=.*/= 16M/" /etc/php/7.4/fpm/php.ini && \
+       sed -i "/^upload_max_filesize/s/=.*/= 2M/" /etc/php/7.4/fpm/php.ini && \
+       sed -i "/^;date.timezone/s/.*= */date.timezone = UTC/" /etc/php/7.4/fpm/php.ini
+
+   COPY zabbix.conf /etc/nginx/sites-available/default
+   COPY start.sh /start.sh
+
+   RUN chmod +x /start.sh
+
+   EXPOSE 80 10051
+   CMD ["/start.sh"]
+   
+
+3. Создайте файл `zabbix.conf` в той же директории, что и `Dockerfile`:
+
+      server {
+       listen 80;
+       server_name localhost;
+
+       root /usr/share/zabbix;
+
+       access_log  /var/log/nginx/zabbix.access.log;
+       error_log   /var/log/nginx/zabbix.error.log;
+
+       location / {
+           index index.php;
+           try_files $uri $uri/ =404;
+       }
+
+       location ~ \.php$ {
+           fastcgi_pass unix:/run/php/php7.4-fpm.sock;
+           fastcgi_index index.php;
+           fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+           include fastcgi_params;
+       }
+   }
+   
+
+4. Создайте файл `start.sh` в той же директории, что и `Dockerfile`:
+
+      #!/bin/bash
+
+   service php7.4-fpm start
+   service nginx start
+   service zabbix-server start
+
+   sleep infinity
+   
+
+5. Сохраните существующую базу данных и данные старого сервера Zabbix:
+
+      sudo systemctl stop zabbix-server
+   sudo mysqldump -u root -p zabbix > zabbix_backup.sql
+   sudo cp /etc/zabbix/zabbix_server.conf /path/to/Dockerfile/folder
+   
+
+   Замените `/path/to/Dockerfile/folder` на путь к папке с файлом `Dockerfile`.
+
+6. Соберите образ контейнера zabbix-server:
+
+      docker build -t zabbix-server .
+   
+
+7. Создайте и запустите контейнер с образом zabbix-server. Убедитесь, что вы указали правильный путь к файлам с данными.
+
+      docker run -d --name zabbix-server -p 80:80 -p 10051:10051 -v /path/to/Dockerfile/folder/zabbix_server.conf:/etc/zabbix/zabbix_server.conf -v /path/to/Dockerfile/folder/zabbix_backup.sql:/zabbix_backup.sql zabbix-server
+   
+
+8. Зайдите на новый сервер Zabbix и выполните сетевое пробуждение базы данных с помощью резервной копии:
+
+      docker exec -it zabbix-server bash
+   sudo mysql -u root -p -e "create database zabbix character set utf8 collate utf8_bin;"
+   sudo mysql -u root -p zabbix < /zabbix_backup.sql
+   exit
+   
+
+9. Проверьте работу Zabbix, используя веб-интерфейс. Откройте веб-браузер и перейдите по адресу http://<IP-адрес сервера>:80/.
+
+Теперь у вас установлен zabbix-server в Docker на Ubuntu 20.04 без использования docker-compose.
