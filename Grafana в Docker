@@ -1,0 +1,35 @@
+Как установленный  Grafana на Ubuntu 20.04 перенести в Docker (без docker-compose)?
+
+Для переноса установленной Grafana на Ubuntu 20.04 в Docker без использования docker-compose выполните следующие шаги:
+
+1. Сохраните конфигурационные файлы и обратите внимание на местоположение данных.
+
+      sudo cp /etc/grafana/grafana.ini /path/to/Dockerfiles/
+   sudo cp -r /var/lib/grafana /path/to/data
+   
+
+   Замените `/path/to/Dockerfiles/` на путь к папке, где будут храниться конфигурационные файлы и `/path/to/data` на путь к папке с данными Grafana.
+
+2. Остановите уже установленную Grafana.
+
+      sudo systemctl stop grafana-server
+   
+
+3. Установите и настройте Docker на Ubuntu 20.04.
+
+      sudo apt-get update
+   sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+   echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+   sudo apt-get update
+   sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+   sudo systemctl start docker
+   sudo systemctl enable docker
+   
+
+4. Запустите контейнер Grafana с сохраненным конфигурационным файлом и данными.
+
+      sudo docker run -d --name grafana -p 3000:3000 -v /path/to/Dockerfiles/grafana.ini:/etc/grafana/grafana.ini -v /path/to/data/:/var/lib/grafana grafana/grafana:latest
+   
+
+Теперь у вас установлен Grafana в контейнере Docker на Ubuntu 20.04 без использования docker-compose. Для проверки работы Grafana перейдите по адресу `http://<IP-адрес сервера>:3000`.
