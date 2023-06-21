@@ -1,0 +1,40 @@
+Как установленный  Elasticsearh + Kibana на CentOS 7 перенести в Docker (без docker-compose)?
+
+Для переноса установленного Elasticsearch и Kibana на CentOS 7 в Docker без использования docker-compose выполните следующие шаги:
+
+1. Сохраните конфигурационные файлы и обратите внимание на местоположение данных.
+
+      sudo cp /etc/elasticsearch/elasticsearch.yml /path/to/Dockerfiles/
+   sudo cp /etc/kibana/kibana.yml /path/to/Dockerfiles/
+   
+
+   Замените `/path/to/Dockerfiles/` на путь к папке, где будут храниться конфигурационные файлы.
+
+2. Остановите уже установленные Elasticsearch и Kibana.
+
+      sudo systemctl stop elasticsearch
+   sudo systemctl stop kibana
+   
+
+3. Установите и настройте Docker на CentOS 7.
+
+      sudo yum install -y yum-utils iptables device-mapper-persistent-data lvm2
+   sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+   sudo yum install -y docker-ce docker-ce-cli containerd.io
+   sudo systemctl start docker
+   sudo systemctl enable docker
+   
+
+4. Запустите контейнер Elasticsearch с сохраненым конфигурационным файлом и данными.
+
+      sudo docker run -d --name elasticsearch -p 9200:9200 -p 9300:9300 -v /path/to/Dockerfiles/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml -v /path/to/data/:/usr/share/elasticsearch/data docker.elastic.co/elasticsearch/elasticsearch:7.15.1
+   
+
+   Замените `/path/to/data/` на путь к папке с данными Elasticsearch.
+
+5. Запустите контейнер Kibana с сохраненым конфигурационным файлом.
+
+      sudo docker run -d --name kibana -p 5601:5601 -v /path/to/Dockerfiles/kibana.yml:/usr/share/kibana/config/kibana.yml --link elasticsearch:elasticsearch docker.elastic.co/kibana/kibana:7.15.1
+   
+
+Теперь у вас установлены Elasticsearch и Kibana в контейнерах Docker на CentOS 7 без использования docker-compose. Для проверки работы Elasticsearch и Kibana перейдите по адресам `http://<IP-адрес сервера>:9200` и `http://<IP-адрес сервера>:5601`
