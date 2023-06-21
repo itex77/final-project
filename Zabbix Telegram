@@ -1,0 +1,55 @@
+Как в Zabbix настроить триггеры и отсылать события в Telegram?
+
+Чтобы настроить триггеры и отправить уведомления из Zabbix в Telegram, выполните следующие шаги:
+
+1. Создайте бота Telegram и получите его токен.
+
+Отправьте сообщение «/newbot» боту "@BotFather" в Telegram и следуйте указаниям. По итогу, вам дадут токен робота, который нужен для настройки отправки сообщений из Zabbix в Telegram. 
+
+2. Установите `zabbix-telegram-notifier`.
+
+`zabbix-telegram-notifier` - скрипт на Go, который можно настроить с помощью следующих команд:
+
+Находясь в директории с распакованным `zabbix-telegram-notifier`, выполните команды для корректной работы скрипта:
+
+sudo chmod +x ./zabbix_telegram_notifier
+sudo cp ./zabbix_telegram_notifier /usr/lib/zabbix/alertscripts/
+
+
+3. В веб-интерфейсе Zabbix создайте новое медиа (Administration -> Media types -> Create media type).
+
+Настройки следующие:
+
+- Media Type: Script
+- Name: Telegram
+- Script name: zabbix_telegram_notifier
+
+Затем добавьте скрипт в `/etc/zabbix/zabbix_server.conf`. Откройте файл и добавьте следующие строки:
+
+AlertScriptsPath=/usr/lib/zabbix/alertscripts/
+
+4. В веб-интерфейсе Zabbix создайте нового пользователя (Administration -> Users -> Create user).
+
+- User type: Zabbix admin
+- Alias: ваше имя пользователя или псевдоним
+- Password: ваш пароль для доступа к Zabbix
+- Default media: Telegram
+- Media type: Telegram
+- Send to: Ваш чат-идентификатор измените на ваш идентификатор
+
+5. Создайте новое действие для триггера (Configuration -> Actions -> Create action) с настройками:
+
+- Action type: Send message
+- Default message: настройте текст сообщений и выберите параметры вида: `{HOST.NAME}`, `{TRIGGER.NAME}`, `{TRIGGER.STATUS}`, `{ITEM.NAME}`, `{ITEM.VALUE}`, `{TRIGGER.SEVERITY}`, чтобы содержать информацию о событии.
+- Default subject - Название триггера.
+
+6. Настройте условия и операции для действия.
+
+Условия для действия должны включать формулу триггера. Операции должны определить операции, которые нужно выполнить при срабатывании триггера: добавление пользователей в уведомления, отправление сообщения и другие действия.
+
+7. Перезапустите Zabbix Server:
+
+sudo systemctl restart zabbix-server
+
+
+Теперь у вас настроена отправка сообщений из Zabbix в Telegram при наступлении событий
