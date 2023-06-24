@@ -1,0 +1,99 @@
+Как на сервере ub2srv (с уже настроенным nginx и Apache) необходимо настроить filebeat и отправлять
+логи веб-серверов на ELK (cnt3srv), и в Kibana (тоже в cnt3srv) логи должны быть видны?
+
+Chat GPT на русском - Chat AI, [17.06.2023 19:40]
+Для настройки Filebeat на сервере ub2srv и отправки логов веб-серверов на ELK в cnt3srv и отображения
+логов в Kibana, следуйте этим инструкциям.
+
+Настройка Filebeat на ub2srv:
+
+1. Установите Filebeat на сервер ub2srv:
+
+      sudo apt update
+   sudo apt install -y filebeat
+   
+
+2. Отредактируйте конфигурационный файл `/etc/filebeat/filebeat.yml`, чтобы он выглядел следующим образом:
+
+      filebeat.inputs:
+   - type: log
+     enabled: true
+     paths:
+       - /var/log/apache2/*.log
+       - /var/log/nginx/*.log
+
+   output.elasticsearch:
+     hosts: ["cnt3srv:9200"]
+     username: "elastic"
+     password: "password"
+   
+
+   Примечание: замените "password" на реальный пароль для пользователя "elastic" в ELK.
+
+3. Сохраните и закройте файл конфигурации.
+
+4. Перезапустите Filebeat:
+
+      sudo systemctl restart filebeat
+   
+
+Настройка ELK и Kibana на cnt3srv:
+
+1. Установите и настройте Elasticsearch, Logstash и Kibana на сервере cnt3srv следуя инструкциям в
+соответствующих документациях.
+
+2. В настройках Logstash добавьте следующий конфигурационный файл `/etc/logstash/conf.d/02-beats-input.conf`,
+чтобы он выглядел следующим образом:
+
+      input {
+     beats {
+       port => 5044
+     }
+   }
+   
+
+3. Добавьте конфигурационный файл `/etc/logstash/conf.d/10-syslog-filter.conf`, чтобы обработать логи
+веб-серверов:
+
+      filter {
+     if [input.type] == "log" {
+       grok {
+         match => { "message" => "%{COMBINEDAPACHELOG}" }
+       }
+     }
+
+     if [input.type] == "log" {
+       grok {
+         match => { "message" => "%{COMBINEDAPACHELOG}" }
+       }
+     }
+   }
+   
+
+4. Добавьте конфигурационный файл `/etc/logstash/conf.d/30-elasticsearch-output.conf`,
+чтобы отправить логи в ELK:
+
+      output {
+     elasticsearch {
+       hosts => ["localhost:9200"]
+       index => "%{[@metadata][beat]}-%{[@metadata][version]}-%{+YYYY.MM.dd}"
+     }
+   }
+   
+
+5. Перезапустите Logstash:
+
+      sudo systemctl restart logstash
+   
+
+6. В Kibana создайте индексный шаблон, чтобы отображать логи веб-серверов:
+
+   - Войдите в Kibana.
+   - Нажмите "Management" в левой панели.
+   - Нажмите "Index Patterns" и затем "Create index pattern".
+   - Введите `filebeat-*` в "Index pattern" и нажмите "Next step".
+   - Выберите "timestamp" в "Time Filter field name".
+   - Нажмите "Create index pattern".
+
+7. Теперь вы можете просматривать логи в Kibana, выбрав соответствующий индексный шаблон,
+который вы создали в шаге 6.
