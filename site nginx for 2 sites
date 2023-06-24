@@ -1,0 +1,127 @@
+Для поднятия веб-сервера nginx как реверс прокси для двух сайтов,
+в том числе одного сайта с SSL и другого сайта с формой обратной связи, следуйте этим инструкциям.
+
+1. Установите nginx на сервер:
+
+sudo apt-get update
+sudo apt-get install nginx
+
+
+2. Создайте новый конфигурационный файл для сайта с формой обратной связи 
+`/etc/nginx/sites-available/contact_form.conf` и добавьте следующий код:
+
+server {
+  listen 80;
+  server_name example.com; # замените на имя вашего домена
+
+  # Redirect all HTTP traffic to HTTPS
+  return 301 https://$server_name$request_uri;
+}
+
+server {
+  listen 443 ssl;
+  server_name example.com; # замените на имя вашего домена
+
+  # SSL configuration
+  ssl_certificate /path/to/ssl/certificate.crt; # замените на путь к вашему SSL-сертификату
+  ssl_certificate_key /path/to/ssl/private-key.key; # замените на путь к вашему закрытому ключу
+#SSL-сертификата
+
+  location / {
+    # Forward all requests to Joomla server
+    proxy_pass http://localhost:8080; # замените на порт, на котором работает ваш веб-сервер Joomla
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+    # Redirect all subdirectories to Joomla homepage
+    rewrite ^/(.*)$ / break;
+  }
+
+  error_page 404 /404.html;
+  location = /404.html {
+    internal;
+  }
+}
+
+
+3. Создайте новый конфигурационный файл для сайта с SSL-сертификатом 
+`/etc/nginx/sites-available/ssl_site.conf` и добавьте следующий код:
+
+server {
+  listen 80;
+  server_name example2.com; # замените на имя вашего домена
+
+  # Redirect all HTTP traffic to HTTPS
+  return 301 https://$server_name$request_uri;
+}
+
+server {
+  listen 443 ssl;
+  server_name example2.com; # замените на имя вашего домена
+
+  # SSL configuration
+  ssl_certificate /path/to/ssl/certificate.crt; # замените на путь к вашему SSL-сертификату
+  ssl_certificate_key /path/to/ssl/private-key.key; # замените на путь к вашему закрытому ключу 
+#SSL-сертификата
+
+  location / {
+    # Return a neutral image
+    root /var/www/html;
+    index index.html;
+
+    # SSL configuration
+    add_header Content-Type "image/jpeg";
+    add_header Cache-Control "public, max-age=31536000, immutable";
+    expires 365d;
+  }
+}
+
+
+4. Создайте символьные ссылки на оба файла конфигурации из `sites-available` в `sites-enabled`:
+
+sudo ln -s /etc/nginx/sites-available/contact_form.conf /etc/nginx/sites-enabled/contact_form.conf
+sudo ln -s /etc/nginx/sites-available/ssl_site.conf /etc/nginx/sites-enabled/ssl_site.conf
+
+
+5. Проверьте конфигурацию nginx:
+
+sudo nginx -t
+
+
+6. Перезапустите nginx:
+
+sudo systemctl restart nginx
+
+
+7. Когда вы установите Joomla, отредактируйте конфигурационный файл `configuration.php`, 
+добавив следующий код сверху:
+
+// Force SSL for the entire site
+if ($_SERVER['HTTP_X_FORWARDED_PROTO'] == 'http') {
+  $base_url = str_replace('http://', 'https://', JURI::base());
+  define('JURI', $base_url);
+}
+// Use SF.local as mail server
+$mailer = JFactory::getMailer();
+$mailer->setSender($config->get('mailfrom'));
+$mailer->addRecipient($config->get('sitename'));
+$mailer->isSMTP();
+$mailer->SMTPAuth = true;
+$mailer->SMTPSecure = 'tls';
+$mailer->Host = 'SF.local'; // замените на имя вашего почтового сервера
+$mailer->Username = 'username';
+$mailer->Password = 'password';
+$mailer->Port = 587;
+$mailer->setSubject($some_subject);
+$mailer->setBody($some_body);
+$mailer->send();
+
+
+8. Проверьте, что Joomla успешно отправляет электронные письма с помощью:
+
+sudo tail -f /var/log/mail.log
+
+
+Когда пользователи отправляют сообщения с формы обратной связи на вашем сайте Joomla,
+электронные письма будут отправляться через ваш почтовый сервер на адрес, указанный в конфигурационном файле.
