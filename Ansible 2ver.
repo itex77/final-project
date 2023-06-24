@@ -1,0 +1,247 @@
+Chat GPT на русском - Chat AI, [09.06.2023 18:05]
+1. Создаем роли для каждого сервиса:
+```
+ansible-galaxy init apache
+ansible-galaxy init php
+ansible-galaxy init nginx
+ansible-galaxy init zabbix-agent
+ansible-galaxy init bind9
+ansible-galaxy init postfix
+ansible-galaxy init dovecot
+ansible-galaxy init filebeat
+```
+
+2. Создаем плейбук start_services.yml для запуска всех сервисов на сервере 10.8.0.6:
+```
+- hosts: 10.8.0.6
+  become: true
+  roles:
+    - role: apache
+    - role: php
+    - role: nginx
+    - role: zabbix-agent
+    - role: bind9
+    - role: postfix
+    - role: dovecot
+    - role: filebeat
+```
+
+3. Создаем плейбук install_services.yml для установки сервисов на серверах:
+```
+- name: Install services
+  hosts: all
+  become: true
+  vars:
+    - ubuntu_services:
+        - apache2
+        - php
+        - nginx
+        - zabbix-agent
+        - bind9
+        - postfix
+        - dovecot
+    - cnt7_services:
+        - postgresql12-server
+        - zabbix-agent
+        - elasticsearch
+  tasks:
+    - name: Install Ubuntu services
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ ubuntu_services }}"
+      when: "'ubuntu' in inventory_hostname"
+
+    - name: Install CentOS services
+      yum:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ cnt7_services }}"
+      when: "'centos' in inventory_hostname"
+
+    - name: Install Filebeat on Ubuntu
+      shell: dpkg -i ~/ansible/filebeat-***-*****8.deb
+      when: "'ubuntu' in inventory_hostname and 'filebeat' in inventory_hostname"
+```
+
+4. Создаем плейбук install_os.yml для установки ОС Ubuntu 20.04 на сервере ub1srv:
+```
+- hosts: ub1srv
+  become: true
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+  tasks:
+    - name: Install Ubuntu 20.04
+      apt:
+        name: linux-generic
+        state: present
+        update_cache: yes
+```
+
+5. Выгружаем роли на GitHub:
+```
+ansible-galaxy login
+cd <роль>
+git init
+git add .
+git commit -m "initial commit"
+git remote add origin git@github.com:username/<роль>.git
+git push -u origin master
+```
+
+6. Создаем плейбук configure_services.yml для настройки доступности сервисов снаружи:
+```
+- hosts: all
+  vars:
+    - zabbix_password: "my_zabbix_password"
+    - kibana_password: "my_kibana_password"
+    - grafana_password: "my_grafana_password"
+    - nginx_password: "my_nginx_password"
+  tasks:
+    - name: Configure Zabbix server
+      template:
+        src: templates/zabbix_server.conf.j2
+        dest: /etc/zabbix/zabbix_server.conf
+        mode: 0600
+      notify: restart zabbix
+
+    - name: Configure Kibana
+      template:
+        src: templates/kibana.yml.j2
+        dest: /etc/kibana/kibana.yml
+        mode: 0600
+      notify: restart kibana
+
+    - name: Configure Grafana
+      template:
+        src: templates/grafana.ini.j2
+        dest: /etc/grafana/grafana.ini
+        mode: 0600
+      notify: restart grafana
+
+    - name: Configure Nginx
+      template:
+        src: templates/nginx.conf.j2
+        dest: /etc/nginx/nginx.conf
+        mode: 0600
+      notify: restart nginx
+
+  handlers:
+    - name: restart zabbix
+      service:
+        name: zabbix-server
+        state: restarted
+
+    - name: restart kibana
+      service:
+        name: kibana
+        state: restarted
+
+    - name: restart grafana
+      service:
+        name: grafana-server
+        state: restarted
+      
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
+```
+
+7. Прописываем сервера в файле hosts:
+```
+[ubuntu_servers]
+ub1srv ansible_host=10.8.0.5
+ub2srv ansible_host=10.8.0.6
+
+[centos_servers]
+cnt7srv ansible_host=10.8.0.7
+```
+
+8. Создаем папку templates и vars в каждой роли для хранения конфигурационных файлов и подменных значений. Создаем папку handlers в каждой роли для установки состояний для служб:
+```
+apache/
+├── handlers/
+│   └── main.yml
+├── tasks/
+│   └── main.yml
+├── templates/
+│   └── apache.conf.j2
+└── vars/
+    └── main.yml
+
+php/
+├── handlers/
+│   └── main.yml
+├── tasks/
+│   └── main.yml
+├── templates/
+│   └── php.conf.j2
+└── v
+
+Chat GPT на русском - Chat AI, [09.06.2023 18:05]
+ars/
+    └── main.yml
+
+nginx/
+├── handlers/
+│   └── main.yml
+├── tasks/
+│   └── main.yml
+├── templates/
+│   └── nginx.conf.j2
+└── vars/
+    └── main.yml
+
+zabbix-agent/
+├── handlers/
+│   └── main.yml
+├── tasks/
+│   └── main.yml
+├── templates/
+│   └── zabbix_agent.conf.j2
+└── vars/
+    └── main.yml
+
+bind9/
+├── handlers/
+│   └── main.yml
+├── tasks/
+│   └── main.yml
+├── templates/
+│   └── named.conf.j2
+└── vars/
+    └── main.yml
+
+postfix/
+├── handlers/
+│   └── main.yml
+├── tasks/
+│   └── main.yml
+├── templates/
+│   └── postfix.conf.j2
+└── vars/
+    └── main.yml
+
+dovecot/
+├── handlers/
+│   └── main.yml
+├── tasks/
+│   └── main.yml
+├── templates/
+│   └── dovecot.conf.j2
+└── vars/
+    └── main.yml
+
+filebeat/
+├── handlers/
+│   └── main.yml
+├── tasks/
+│   └── main.yml
+├── templates/
+│   └── filebeat.yml.j2
+└── vars/
+    └── main.yml
+```
