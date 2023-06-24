@@ -1,0 +1,310 @@
+Техническое задание на установку и настройку ролей и приложений:
+
+1. Роли:
+
+- `apache` - устанавливает Apache и настраивает базовые параметры.
+- `php` - устанавливает PHP и необходимые расширения для работы в связке с Apache.
+- `nginx` - устанавливает Nginx и настраивает базовые параметры.
+- `zabbix-agent` - устанавливает Zabbix-агент и настраивает файл конфигурации для связи с Zabbix-сервером.
+- `bind9` - устанавливает и настраивает DNS-сервер Bind9.
+- `postfix` - устанавливает и настраивает SMTP-сервер Postfix для отправки электронной почты.
+- `dovecot` - устанавливает и настраивает IMAP-сервер Dovecot для приема и доставки электронной почты.
+
+Все роли создаются с использованием по умолчанию структуры каталогов, полученной от команды `ansible-galaxy init`. Файлы задач будут располагаться в каталоге `tasks`, а файлы шаблонов — в каталоге `templates`.
+
+2. Приложения:
+
+- `PostgreSQL-12` - устанавливает базу данных PostgreSQL версии 12.
+- `Elasticsearch` - устанавливает поисковый движок Elasticsearch.
+- `zabbix-server` - устанавливает Zabbix-сервер.
+- `kibana` - устанавливает GUI для Elasticsearch - Kibana.
+- `grafana` - устанавливает систему анализа и мониторинга Grafana.
+
+3. Хосты:
+
+`ub2srv` - сервер Ubuntu 20.04 с IP-адресом 10.8.0.6
+
+`cnt7srv` - сервер CentOS 7 с IP-адресом 10.8.0.7
+
+Оба сервера подключаются по протоколу SSH при помощи ключей.
+
+4. Плейбуки:
+
+`install_apache_php_nginx.yml` - устанавливает и настраивает Apache, PHP и Nginx на сервере `ub2srv`:
+
+```yaml
+---
+- name: Install Apache, PHP and Nginx on ub2srv
+  hosts: ub2srv
+  become: yes
+
+  roles:
+    - apache
+    - php
+    - nginx
+```
+
+`install_zabbix_bind_postfix_dovecot.yml` - устанавливает и настраивает Zabbix-агент, DNS-сервер Bind9, SMTP-сервер Postfix и IMAP-сервер Dovecot на сервере `ub2srv`:
+
+```yaml
+---
+- name: Install Zabbix Agent, Bind9, Postfix and Dovecot on ub2srv
+  hosts: ub2srv
+  become: yes
+
+  roles:
+    - zabbix-agent
+    - bind9
+    - postfix
+    - dovecot
+```
+
+`install_postgresql_elasticsearch.yml` - устанавливает базу данных PostgreSQL версии 12 и поисковый движок Elasticsearch на CentOS-сервере `cnt7srv`:
+
+```yaml
+---
+- name: Install Postgresql and Elasticsearch on cnt7srv
+  hosts: cnt7srv
+  become: yes
+
+  tasks:
+    - name: Install PostgreSQL 12
+      yum:
+        name:
+          - postgresql12-server
+          - postgresql12-contrib
+          - postgresql12-devel
+        state: present
+
+    - name: Initialize PostgreSQL database
+      command: /usr/pgsql-12/bin/postgresql-12-setup initdb
+
+    - name: Start PostgreSQL service
+      systemd:
+        name: postgresql-12.service
+        state: started
+        enabled: yes
+
+    - name: Install Elasticsearch
+      rpm_key:
+        key: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+        state: present
+
+    - name: Add Elasticsearch repository
+      yum_repository:
+        name: elasticsearch
+        description: Elasticsearch repository
+        baseurl: https://artifacts.elastic.co/packages/oss-7.x/yum
+        gpgkey: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+        enabled: yes
+        gpgcheck: yes
+
+    - name: Install Elasticsearch
+      yum:
+        name: elasticsearch-oss
+        state: present
+
+    - name: Enable and start Elasticsearch service
+      systemd:
+        name: elasticsearch.service
+        state: started
+        enabled: yes
+```
+
+`install_zbx_srv_kbn_grafana.yml` - устанавливает Zabbix-сервер, Kibana и Grafana на сервере `ub2srv`:
+
+```yaml
+---
+- name: Install Zabbix server, Kibana and Grafana on ub2srv
+  hosts: ub2srv
+  become: yes
+
+  tasks:
+    - name: Add Zabbix repository
+      apt_key:
+        url: https://repo.zabbix.com/zabbix-official-repo.key
+        state: present
+
+    - name: Add Zabbix repository
+      apt_repository:
+        filename: zabbix.list
+        repo: "deb http://repo.zabbix.com/zabbix/5.2/ubuntu focal main"
+        state: present
+
+    - name: Install Zabbix Server
+      apt:
+        name:
+          - zabbix-server-pgsql
+          - zabbix-
+
+Chat GPT на русском - Chat AI, [09.06.2023 17:05]
+frontend-php
+          - zabbix-apache-conf
+          - zabbix-sql-scripts
+        state: present
+
+    - name: Create Zabbix database
+      become_user: postgres
+      postgresql_db:
+        name: zabbix
+        encoding: UTF8
+        lc_collate: C
+        lc_ctype: C
+
+    - name: Create Zabbix user
+      become_user: postgres
+      postgresql_user:
+        db: zabbix
+        name: zabbix
+        password: zabbix
+
+    - name: Import Zabbix schema
+      become_user: postgres
+      postgresql_db:
+        name: zabbix
+        state: dump
+        target: /tmp/schema.sql
+        login_host: localhost
+        login_user: zabbix
+        login_password: zabbix
+        owner: zabbix
+
+    - name: Import Zabbix data
+      become_user: postgres
+      postgresql_db:
+        name: zabbix
+        state: restore
+        target: /usr/share/zabbix/data/data.sql
+        login_host: localhost
+        login_user: zabbix
+        login_password: zabbix
+
+    - name: Set Zabbix database configuration
+      blockinfile:
+        block: |
+          DBHost=localhost
+          DBName=zabbix
+          DBUser=zabbix
+          DBPassword=zabbix
+        dest: /etc/zabbix/zabbix_server.conf
+        state: present
+        mode: '0644'
+
+    - name: Enable and start Zabbix Server
+      systemd:
+        name: zabbix-server
+        state: started
+        enabled: yes
+
+    - name: Add Kibana repository
+      apt_key:
+        url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+        state: present
+
+    - name: Add Kibana repository
+      apt_repository:
+        filename: elastic.list
+        repo: "deb https://artifacts.elastic.co/packages/oss-7.x/apt stable main"
+        state: present
+
+    - name: Install Kibana
+      apt:
+        name: kibana-oss
+        state: present
+
+    - name: Set Kibana configuration
+      blockinfile:
+        block: |
+          server.host: "0.0.0.0"
+          elasticsearch.hosts: ["http://localhost:9200"]
+          elasticsearch.username: "elastic"
+          elasticsearch.password: "password"
+        dest: /etc/kibana/kibana.yml
+        state: present
+        mode: '0644'
+
+    - name: Enable and start Kibana service
+      systemd:
+        name: kibana
+        state: started
+        enabled: yes
+
+    - name: Add Grafana repository
+      apt_key:
+        url: https://packages.grafana.com/gpg.key
+        state: present
+
+    - name: Add Grafana repository
+      apt_repository:
+        filename: grafana.list
+        repo: "deb https://packages.grafana.com/oss/deb stable main"
+        state: present
+
+    - name: Install Grafana
+      apt:
+        name: grafana
+        state: present
+
+    - name: Set Grafana configuration
+      blockinfile:
+        block: |
+          [server]
+          http_port = 3000
+          domain = localhost
+
+          [database]
+          type = postgres
+          host = 10.8.0.6:5432
+          name = zabbix
+          user = zabbix
+          password = zabbix
+
+          [auth.anonymous]
+          enabled = true
+
+          [auth.basic]
+          enabled = true
+          #default admin user is admin/admin
+          #as soon as possible you must change password to be under the security policies
+          ;admin_user = admin
+          ;admin_password = admin
+        dest: /etc/grafana/grafana.ini
+        state: present
+        mode: '0644'
+
+    - name: Enable and start Grafana service
+      systemd:
+        name: grafana-server
+        state: started
+        enabled: yes
+```
+
+`install_zabbix_agent_postgresql_elasticsearch.yml` - устанавливает и настраивает Zabbix-агент, PostgreSQL версии 12 и Elasticsearch на CentOS-сервере `cnt7srv`:
+
+```yaml
+---
+- name: Install Zabbix Agent, PostgreSQL and Elasticsearch on cnt7srv
+  hosts: cnt7srv
+  become: yes
+
+  tasks:
+    - name: Add Zabbix repository
+      yum_repository:
+        name: zabbix
+        description: Zabbix repository
+        baseurl: https://repo.zabbix.com/zabbix/5.2/rhel/7/x86_64
+        gpgkey: https://repo.zabbix.com/RPM-GPG-KEY-ZABBIX
+        enabled: yes
+
+    - n
+
+Chat GPT на русском - Chat AI, [09.06.2023 17:05]
+ame: Install Zabbix Agent
+      yum:
+        name: zabbix-agent
+        state: present
+
+    - name: Set Zabbix Agent configuration
+      blockinfile:
+        block: |
+          Server=10
