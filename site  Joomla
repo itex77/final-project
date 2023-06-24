@@ -1,0 +1,93 @@
+Вы можете установить Joomla на Ubuntu Server 20.04 следуя следующим шагам:
+
+1. Установите LAMP стэк (Apache, MySQL и PHP) на вашем сервере, используя команду:
+
+   sudo apt update
+   sudo apt install apache2 mysql-server php libapache2-mod-php php-mysql php-gd php-cli php-curl php-mbstring php-xml
+   
+
+
+2. Создайте базу данных для Joomla, используя команду:
+
+   sudo mysql -u root -p
+   
+
+
+Войдите в систему MySQL, используя ваш пароль администратора, и выполните следующие команды:
+
+   CREATE DATABASE joomladb;
+   CREATE USER 'joomlauser'@'localhost' IDENTIFIED BY 'password';
+   GRANT ALL PRIVILEGES ON joomladb.* TO 'joomlauser'@'localhost';
+   FLUSH PRIVILEGES;
+   
+
+
+Замените 'joomladb' на имя вашей базы данных, 'joomlauser' на имя вашего пользователя базы данных и
+'password' на пароль для пользователя базы данных.
+
+3. Загрузите последнюю версию Joomla с официального сайта: https://www.joomla.org/download.html
+
+4. Распакуйте архив с Joomla в каталог /var/www/html/joomla на вашем сервере:
+
+   sudo mkdir /var/www/html/joomla
+   cd Downloads/
+   sudo unzip Joomla_3.9.23-Stable-Full_Package.zip -d /var/www/html/joomla/
+   
+
+
+Обратите внимание, что для последних версий Joomla может быть изменено имя архива, а каталог назначения
+может быть иным.
+
+5. Установите необходимые права на файлы и каталоги Joomla:
+
+   sudo chown -R www-data:www-data /var/www/html/joomla/
+   sudo chmod -R 755 /var/www/html/joomla/
+   
+
+
+6. Создайте веб-серверный блок в Apache для Joomla. Создайте конфигурационный файл:
+
+   sudo nano /etc/apache2/sites-available/joomla.conf
+   
+
+
+Вставьте следующий блок конфигурации:
+
+   <VirtualHost *:80>
+      ServerAdmin your-email@example.com
+      DocumentRoot /var/www/html/joomla/
+      ServerName your-domain.com
+      ServerAlias www.your-domain.com
+
+      <Directory /var/www/html/joomla/>
+         Options Indexes FollowSymLinks MultiViews
+         AllowOverride All
+         Order allow,deny
+         allow from all
+      </Directory>
+
+      ErrorLog ${APACHE_LOG_DIR}/error.log
+      CustomLog ${APACHE_LOG_DIR}/access.log combined
+   </VirtualHost>
+   
+
+
+Замените 'your-email@example.com' на вашу электронную почту, 'your-domain.com' на имя вашего домена.
+
+7. Активируйте веб-серверный блок в Apache:
+
+   sudo a2ensite joomla.conf
+   
+
+
+8. Перезапустите Apache:
+
+   sudo systemctl restart apache2
+   
+
+
+9. Откройте ваш браузер и введите адрес вашего сервера (http://your-domain.com) в адресную строку.
+Вы увидите экран установки Joomla. Следуйте инструкциям на экране, чтобы завершить установку.
+
+10. После завершения установки перейдите на панель администратора для настройки сайта.
+Адрес панели администратора: http://your-domain.com/administrator.
