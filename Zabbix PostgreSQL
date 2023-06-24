@@ -1,0 +1,66 @@
+Каким образом в Zabbix настроить мониторинг состояния PostgreSQL ?
+
+Чтобы настроить мониторинг состояния PostgreSQL в Zabbix, выполните следующие шаги:
+
+1. Установите Zabbix Agent на сервере с базой данных PostgreSQL.
+2. Убедитесь, что на сервере с базой данных запущен и настроен PostgreSQL.
+3. Установите пакеты необходимые для работы PostgreSQL с Zabbix Agent:
+
+   На Ubuntu/Debian:
+
+      sudo apt-get install libpq-dev
+   
+
+   На CentOS/RHEL:
+
+      sudo yum install postgresql-devel
+   
+
+4. Скомпилируйте и установите модуль zabbix_agent для PostgreSQL:
+
+      wget https://github.com/cavaliercoder/zabbix-module-postgresql/archive/master.zip
+   unzip master.zip
+   cd zabbix-module-postgresql-master
+   make
+   sudo make install
+   
+
+5. В конфигурационном файле Zabbix Agent (`/etc/zabbix/zabbix_agentd.conf` или 
+`/usr/local/etc/zabbix_agentd.conf`) добавьте следующие строки:
+
+      LoadModulePath=/usr/local/lib
+   LoadModule=libzbxpgsql.so
+   UserParameter=pgsql.ping,sudo -u postgres psql -qAtXw -c "SELECT 1" | awk '{print $1}'
+   
+
+   Здесь `/usr/local/lib` - это путь, где находится файл модуля (`libzbxpgsql.so`).
+
+6. Добавьте пользователю zabbix возможность выполнять `sudo` для команд `psql` без ввода пароля.
+Создайте файл `/etc/sudoers.d/Zabbixpgsql` с содержимым:
+
+      Defaults:zabbix  !requiretty
+   zabbix  ALL=(postgres)  NOPASSWD: /usr/bin/psql
+   
+
+   Вместо "zabbix" используйте имя пользователя под которым работает Zabbix Agent на сервере с PostgreSQL.
+
+7. Перезапустите Zabbix Agent:
+
+   На Ubuntu/Debian:
+
+      sudo service zabbix-agent restart
+   
+
+   На CentOS/RHEL:
+
+      sudo systemctl restart zabbix-agent
+   
+
+8. В интерфейсе Zabbix создайте новый хост для сервера с базой данных PostgreSQL и добавьте 
+соответствующие элементы данных (например, pgsql.ping, pgsql.*).
+9. Настроить уведомления и тревоги для элементов данных, чтобы получать уведомления о состоянии 
+базы данных PostgreSQL.
+
+Дополнительно можно настроить мониторинг других параметров PostgreSQL, например, производительности 
+или использования ресурсов. Для этого необходимо использовать соответствующие запросы SQL
+и добавить новые элементы данных в интерфейс Zabbix.
