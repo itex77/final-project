@@ -53,3 +53,5 @@ sudo systemctl restart zabbix-server
 
 
 Теперь у вас настроена отправка сообщений из Zabbix в Telegram при наступлении событий
+
+доп: https://serveradmin.ru/nastroyka-opoveshheniy-zabbix-v-telegram/
