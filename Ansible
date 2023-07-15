@@ -37,12 +37,19 @@ ansible-galaxy init elasticsearch
     - postgresql-12
     - zabbix-agent
     - elasticsearch
+## playbook_z.yml
+---
+- hosts: servers
+  become: yes
+
+  roles:
+          - { role: zabbix-agent, when: ansible_system == 'Linux' }
 
 
 # 3. Команды для запуска плейбуков
-ansible-playbook -i inventory/hosts playbook_ub2srv.yml
-ansible-playbook -i inventory/hosts playbook_cnt7srv.yml
-
+ansible-playbook -i hosts playbook_ub2srv.yml
+ansible-playbook -i hosts playbook_cnt7srv.yml
+ansible-playbook -i hosts playbook_z.yml
 
 # 4. Настройка доступности сервисов
 Необходимо настроить firewall на серверах и создать необходимые правила, 
