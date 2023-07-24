@@ -71,10 +71,10 @@ mkdir /var/log/openvpn
 #Разрешаем автоматический старт сервиса vpn и запускаем его:
 systemctl enable openvpn@server --now
 
-###Настройка OpenVPN-клиента
+###НАСТРОЙКА OpenVPN-КЛИЕНТА
 sudo apt-get install openvpn easy-rsa
 #Сертификат должен быть сформирован на сервер, после чего перенесен на клиентское устройство. Рассмотрим процесс подробнее.
-#На сервере
+#НА СЕРВЕРЕ
 #Создадим каталог, куда поместим сертификаты для обмена:
 mkdir /tmp/keys
 #* сертификаты будут скопированы в каталог /tmp для удобства их переноса на клиентский компьютер.
@@ -90,36 +90,24 @@ export EASYRSA_CERT_EXPIRE=1460
 #Вводим пароль, который указывали при создании корневого сертификата:
 #Enter pass phrase for /etc/openvpn/easy-rsa/pki/private/ca.key:
 #Скопируем ключи во временную директорию:
-cp pki/issued/client1.crt pki/private/client1.key pki/ca.crt pki/ta.key /tmp/keys/
+cp pki/issued/[server_name].crt pki/private/[server_name].key pki/ca.crt pki/ta.key /tmp/keys/
 #Разрешим доступ на чтения всем пользователям:
 chmod -R a+r /tmp/keys
 
 #На клиенте
-sudo bash -c 'cat > /etc/openvpn/client.conf <<EOF
+sudo bash -c 'cat > /etc/openvpn/client/client.conf <<EOF
 client
+dev tun
+proto tcp
+remote 192.168.88.209 1194
 resolv-retry infinite
 nobind
-remote 192.168.88.209 443
-proto udp
-dev tun
-comp-lzo
-ca ca.crt
-cert sf1.crt
-key sf1.key
-tls-client
-tls-auth ta.key 1
-float
-keepalive 10 120
 persist-key
 persist-tun
-tun-mtu 1500
-mssfix 1620
-cipher AES-256-GCM
-verb 0
-auth-user-pass
+cipher DES-CBC
 'EOF
 
-#Настройка на сервере
+#Настройка НА СЕРВЕРЕ
 #Открываем конфигурационный файл openvpn:
 sudo bash -c 'cat > /etc/openvpn/server.conf <<EOF
 plugin /usr/lib/openvpn/plugins/openvpn-plugin-auth-pam.so login
@@ -130,24 +118,24 @@ scp /tmp/keys/* itex@192.168.88.213:/home/itex/keys
 mkdir /etc/openvpn/tmp
 chmod 777 /etc/openvpn/tmp
 
-#На клиенте
+#НА КЛИЕНТЕ
 sudo mv * /etc/openvpn/client/ #*из папки /home/itex/keys
 
-#Перезапускаем сервер:
+#Перезапускаем СЕРВЕР:
 systemctl restart openvpn@server
 
 #Создаем учетную запись для авторизации:
 useradd sf1 -s /sbin/nologin
 passwd sf1
 
-#Настройка на клиенте
+#НАСТРОЙКА НА КЛИЕНТЕ
 В конфигурационный файл клиента добавляем:
-sudo bash -c 'cat > /etc/openvpn/client.conf <<EOF
+sudo bash -c 'cat > /etc/openvpn/client/client.conf <<EOF
 auth-user-pass
 'EOF
 
 #Настройка делает так, что клиенты VPN-сервера начинают использовать последний как шлюз по умолчанию. Таким образом, весь трафик идет через наш сервер.
-#Открываем на сервере конфигурационный файл и добавляем:
+#Открываем НА СЕРВЕРЕ конфигурационный файл и добавляем:
 sudo bash -c 'cat > /etc/openvpn/server.conf <<EOF
 push "redirect-gateway def1"
 push "dhcp-option DNS 77.88.8.8"
@@ -160,5 +148,5 @@ vi /etc/sysctl.d/gateway.conf
 net.ipv4.ip_forward=1
 #Применяем настройку:
 sysctl -p /etc/sysctl.d/gateway.conf
-#на клиенте
+#НА КЛИЕНТЕ
 sudo openvpn client.conf
