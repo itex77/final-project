@@ -94,7 +94,7 @@ cp pki/issued/[server_name].crt pki/private/[server_name].key pki/ca.crt pki/ta.
 #Разрешим доступ на чтения всем пользователям:
 chmod -R a+r /tmp/keys
 
-#На клиенте
+#НА КЛИЕНТЕ
 sudo bash -c 'cat > /etc/openvpn/client/client.conf <<EOF
 client
 dev tun
