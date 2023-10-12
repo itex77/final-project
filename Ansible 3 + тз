@@ -135,10 +135,8 @@
       apt:
         name:
           - zabbix-server-pgsql
-          - zabbix-
-
-Chat GPT на русском - Chat AI, [09.06.2023 17:05]
-frontend-php
+          - zabbix
+          - frontend-php
           - zabbix-apache-conf
           - zabbix-sql-scripts
         state: present
@@ -296,10 +294,7 @@ frontend-php
         gpgkey: https://repo.zabbix.com/RPM-GPG-KEY-ZABBIX
         enabled: yes
 
-    - n
-
-Chat GPT на русском - Chat AI, [09.06.2023 17:05]
-ame: Install Zabbix Agent
+    - name: Install Zabbix Agent
       yum:
         name: zabbix-agent
         state: present
