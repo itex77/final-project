@@ -1,4 +1,3 @@
-Chat GPT на русском - Chat AI, [09.06.2023 18:05]
 1. Создаем роли для каждого сервиса:
 ```
 ansible-galaxy init apache
@@ -179,10 +178,7 @@ php/
 │   └── main.yml
 ├── templates/
 │   └── php.conf.j2
-└── v
-
-Chat GPT на русском - Chat AI, [09.06.2023 18:05]
-ars/
+└── vars/
     └── main.yml
 
 nginx/
