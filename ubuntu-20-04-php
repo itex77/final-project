@@ -1,0 +1,189 @@
+Создадим Ansible роль для установки и настройки PHP версий 7.0 и 7.3 на Ubuntu 20.04.
+
+1. Создайте директорию для роли:
+
+mkdir -p roles/php_installation/tasks
+
+
+2. Внутри этой директории создайте файл main.yml с задачами установки PHP и изменения настроек:
+
+---
+- name: Install prerequisites
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - software-properties-common
+    - dirmngr
+    - apt-transport-https
+    - ca-certificates
+
+- name: Add EPEL repository
+  command: "dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm"
+
+- name: Add Remi repository
+  command: "dnf -y install https://rpms.remirepo.net/enterprise/remi-release-8.rpm"
+
+- name: Install PHP 7.0 and PHP-FPM
+  dnf:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - php70
+    - php70-php-fpm
+
+- name: Install PHP 7.3 and PHP-FPM
+  dnf:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - php73
+    - php73-php-fpm
+
+- name: Update www.conf for PHP 7.0
+  lineinfile:
+    path: /etc/opt/remi/php70/php-fpm.d/www.conf
+    backrefs: yes
+    regexp: '^listen = /var/opt/remi/php70/run/php-fpm/www.sock$'
+    line: 'listen = 127.0.0.1:9001'
+
+- name: Update security.limit_extensions for PHP 7.0
+  lineinfile:
+    path: /etc/opt/remi/php70/php-fpm.d/www.conf
+    backrefs: yes
+    regexp: '^;security.limit_extensions = .php .php3 .php4 .php5 .php7$'
+    line: 'security.limit_extensions = .php .php3 .php4 .php5 .php7 .html'
+
+- name: Update www.conf for PHP 7.3
+  lineinfile:
+    path: /etc/opt/remi/php73/php-fpm.d/www.conf
+    backrefs: yes
+    regexp: '^listen = /var/opt/remi/php73/run/php-fpm/www.sock$'
+    line: 'listen = 127.0.0.1:9003'
+
+- name: Update security.limit_extensions for PHP 7.3
+  lineinfile:
+    path: /etc/opt/remi/php73/php-fpm.d/www.conf
+    backrefs: yes
+    regexp: '^;security.limit_extensions = .php .php3 .php4 .php5 .php7$'
+    line: 'security.limit_extensions = .php .php3 .php4 .php5 .php7 .html'
+
+
+3. Создайте файл main.yml в директории tasks в корне вашего проекта и добавьте следующее содержимое, чтобы вызвать роль php_installation:
+
+---
+- name: Configure PHP on Ubuntu 20.04
+  hosts: all
+  become: true
+  roles:
+    - php_installation
+
+
+Затем выполните команду ansible-playbook main.yml, чтобы Ansible развернул роль на вашем сервере Ubuntu 20.04.
+
+1. Создайте файл с именем example.com.conf.j2 со следующим содержимым:
+
+DocumentRoot /var/www/example.com
+
+ProxyPassMatch - "proxy:fcgi://127.0.0.1:9001"
+ScriptAlias /cgi-bin/ "/var/www/cgi-bin/"
+AddHandler php70-fcgi .php
+Action php70-fcgi /cgi-bin/php70.fcgi
+
+ErrorLog /var/www/example.com/logs/error.log
+
+
+2. Создайте ansible роль для установки и настройки httpd, в которой укажите следующие задачи в файле tasks/main.yml:
+
+- name: Remove php*-php.conf files
+  file:
+    path: "/etc/httpd/conf.d/php*-php.conf"
+    state: absent
+  become: yes
+
+- name: Copy example.com.conf file
+  template:
+    src: "example.com.conf.j2"
+    dest: "/etc/httpd/sites-enabled/example.com.conf"
+  become: yes
+
+- name: Test apache configuration
+  command: apachectl configtest
+  become: yes
+
+- name: Restart httpd service
+  systemd:
+    name: httpd
+    state: restarted
+  become: yes
+
+
+3. Создайте playbook для запуска этой роли на целевом узле:
+
+- hosts: your_target_hosts
+  roles:
+    - your_httpd_role
+
+
+4. Затем запустите этот playbook:
+
+ansible-playbook your_playbook.yml
+
+
+После выполнения этого playbook команды и настройки будут развернуты на Ubuntu 20.04 через ansible роли.
+- name: Create directory for php0.ru
+  file:
+    path: /var/www/php0.ru
+    state: directory
+
+- name: Create index.html for php0.ru
+  copy:
+    content: 'Сайт php 7.0'
+    dest: /var/www/php0.ru/index.html
+
+- name: Create info.php for php0.ru
+  copy:
+    content: |
+      <?php
+      phpinfo();
+      ?>
+    dest: /var/www/php0.ru/info.php
+
+- name: Create symlink for php0.ru config
+  file:
+    src: /etc/httpd/sites-available/php0.ru.conf
+    dest: /etc/httpd/sites-enabled/php0.ru.conf
+    state: link
+
+
+- name: Update php3.ru.conf
+  lineinfile:
+    path: httpd/sites-available/example.com.conf
+    regexp: 'example\.com'
+    line: 'php3.ru'
+  with_items:
+    - 's/70/73/'
+    - 's/9001/9003/'
+
+- name: Create directory for php3.ru
+  file:
+    path: /var/www/php3.ru
+    state: directory
+
+- name: Create index.html for php3.ru
+  copy:
+    content: 'Сайт php 7.3'
+    dest: /var/www/php3.ru/index.html
+
+- name: Create logs directory for php3.ru
+  file:
+    path: /var/www/php3.ru/logs/
+    state: directory
+
+- name: Create info.php for php3.ru
+  copy:
+    content: |
+      <?php
+      phpinfo();
+      ?>
+    dest: /var/www/php3.ru/info.php
